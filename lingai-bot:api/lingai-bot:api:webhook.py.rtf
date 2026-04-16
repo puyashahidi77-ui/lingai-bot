@@ -1,0 +1,49 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Roman;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs24 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 from fastapi import APIRouter, Request\
+import requests\
+import uuid\
+import os\
+from api.balle_api import send_message, get_file_url\
+from api.feedback_engine import transcribe_audio, generate_feedback\
+\
+router = APIRouter()\
+\
+\
+@router.post("/webhook")\
+async def webhook(req: Request):\
+    body = await req.json()\
+\
+    try:\
+        message = body.get("message", \{\})\
+        chat_id = message["chat"]["id"]\
+\
+        if "voice" not in message:\
+            send_message(chat_id, "Please send a voice message \uc0\u55356 \u57252 ")\
+            return \{"ok": True\}\
+\
+        file_id = message["voice"]["file_id"]\
+        file_url = get_file_url(file_id)\
+\
+        tmp_path = f"/tmp/\{uuid.uuid4()\}.oga"\
+        r = requests.get(file_url)\
+        with open(tmp_path, "wb") as f:\
+            f.write(r.content)\
+\
+        text = transcribe_audio(tmp_path)\
+        feedback = generate_feedback(text)\
+\
+        send_message(chat_id, feedback)\
+\
+    except Exception as e:\
+        print("Error:", e)\
+\
+    return \{"ok": True\}\
+}
